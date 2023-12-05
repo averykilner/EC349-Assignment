@@ -1,0 +1,95 @@
+---
+title: "EC349 Assignment"
+output:
+  html_document: default
+  pdf_document: default
+date: "2023-12-01"
+---
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+This assignment contains the analysis of a Random Forest model used in R to predict the number of stars out of 5 given in a Yelp review to a business. Following the CRISP-DM methodology, the model outlined used 1,388,058 training observations and tested against the reviews of 10,000 test observations.  
+
+The Cross-Industry Standard Process for Data Mining (CRISP-DM) is an industry-proven framework consisting of six iterative phases: Business Understanding, Data Understanding, Data Preparation, Modelling, Evaluation, and Deployment (IBM, 2017). CRISP-DM was the chosen Data Science methodology for this assignment, due to its flexibility, as it defines projects as cyclic processes.  
+
+The trade-off between prediction accuracy and model interpretability is well-established in Data Science. However, the potential for overfitting means one may not simply use the most flexible model that has very little interpretability (Gareth Michael James et al., 2013). Given the goal of accurately predicting stars given in Yelp reviews, but aware of overfitting, the CRISP-DM methodology allowed the attempted fitting of various models, such as linear regressions and decision trees, while iterating back to the data preparation stage, to meet the data requirements of the current fitted model.  
+
+On the Business Understanding phase, the first of the CRISP-DM framework, the pre-defined goal was to predict the number of stars given by a user in a Yelp review to a business with the highest degree of accuracy possible, given the level of computational power available when conducting the analysis.  
+
+The Data Understanding phase focused on the main characteristics of the data, as there was no need for data collection, given the dataset’s availability online. This analysis was limited to the simplified dataset “yelp_review_small”, which contained 1,398,056 observations, rather than the 5 separate datasets that contained approximately 7 million reviews, due to the computational power available. It is recognised that variance can be reduced by averaging a set of observations (Gareth Michael James et al., 2013), and so where possible, one would use the full dataset to increase the accuracy of the model.  
+
+Access to greater computational power would have allowed access to a wider range of parameters, for instance, the inclusion of attributes of the businesses. In the case of restaurants, the literature highlights the importance of perceived ambience and atmosphere for reviews (Titz, Lanza-Abbott and Cruz, 2004) for example, which may have helped reduce bias in the model, and reduce its average error rate. Increasing the number of parameters does however increase the risk of overfitting, whereby the model may start to fit noise, increasing variance (Gareth Michael James et al., 2013), a trade-off that must be considered when modelling.  
+
+In order to explore the dataset, this analysis first utilised the `glimpse` function, providing insight into the dimensions of the data, and the various types of variables included:  
+
+```{r, include=FALSE}
+setwd("C:/Users/avery/Desktop/EC349 Assignment")
+library(glmnet)
+library(ggplot2)
+library(tidyverse)
+library(tree)
+library(rpart)
+library(rpart.plot)
+library(caret)  
+library(randomForest) 
+library(psych)
+library(dplyr)
+load("yelp_review_small.Rda")
+```
+
+```{r}
+glimpse(review_data_small)
+```
+
+The Business Understanding phase allowed the identification of the target variable to predict in our model, ‘stars’. Before proceeding with any preparation of the data, the correlation between the three numeric variables ‘useful’, ‘funny’ and ‘cool’ was examined:  
+
+```{r, include=FALSE}
+stars_useful_corr_test <- cor.test(review_data_small$stars, review_data_small$useful)
+stars_funny_corr_test <- cor.test(review_data_small$stars, review_data_small$funny)
+stars_cool_corr_test <- cor.test(review_data_small$stars, review_data_small$cool)
+```
+
+```{r}
+print(stars_useful_corr_test)
+print(stars_funny_corr_test)
+print(stars_cool_corr_test)
+```
+
+The large number of degrees of freedom leads to calculated p-values close to zero, suggesting there is evidence to reject the hypothesis of no correlation. Given the goal of the model is prediction, including these variables that are correlated with our target variable ‘stars’ may improve the model’s predictive performance.  
+
+Literature such as Hu, Zhang and Pavlou (2009) establish a J-shaped distribution of star ratings from reviews in the context of products. As part of the data understanding phase, we sought to verify a similar trend in our dataset, after converting the ‘stars’ variable from a double class numeric into a categorical factor, as recognised in literature such as Chandra Reddy et al. (2017):
+
+```{r}
+review_data_small$stars <- factor(review_data_small$stars, levels = 1:5, labels = c("1", "2", "3", "4", "5"))
+```
+
+```{r}
+ggplot(review_data_small, aes(x = "", fill = stars)) +
+  geom_bar(stat = "count", width = 1) +
+  coord_polar("y") +
+  theme(axis.text = element_blank(),  
+        axis.title = element_blank(),  
+        axis.ticks = element_blank()) +
+  labs(title = "Pie Chart of Stars in Reviews",
+       fill = "Number of Stars")
+```
+
+The pie chart visualisation showed that almost half of the dataset of reviews were given 5 stars, just under a quarter were rated 4 stars (contrasting the J-shaped distribution in the literature), followed by 1 star. The imbalance in the distribution has potential to bias the model towards the majority, which were 5 star reviews, a consideration when later evaluating our model.  
+
+Note the intention to create a word cloud using the ‘text’ column, to visualise the most frequently used words, to further understand the data and later support the use of sentiment analysis, however computational limitations prevented the execution of this. The final data preparation included converting the date variable from a character to the date variable type, as well as checking for missing values, for which there were none, partitioning the data into 10,000 test observations, and 1,388,058 training observations.  
+
+Similar research, such as Chandra Reddy et al. (2017), recognise the high accuracy and prevention of over-fitting of the Random Forest model, as an efficient, robust way to predict ratings based on reviews. Parallel to research like Jonathan, Sihotang and Martin (2019), where accuracy of 92% was achieved, this analysis intended to create a predictive Random Forest model, with an emphasis placed on sentiment analysis. As Qiu et al. (2018) recognises, the rating of a review depends on the sentiment and the number of positive and negative aspects in the review. After exploring the data, the ‘text’ column suggested this analysis would be feasible, and Qiu et al. (2018) suggests that the performance of review rating predictions can be improved significantly by leveraging sentiment analysis.  
+
+Implementing this, however, was the most difficult challenge faced in this project, due to a significant lack of computational power. Trying to overcome this involved a variety of implementations of sentiment analysis, however, the device used could not process the data in any reasonable period. An iterative process, as part of CRISP-DM, between the Data Preparation and Modelling stages then occurred, where various models, like decision trees for instance, were fitted, while adjusting the data to fit the requirements of each model. Eventually, the following simplified (to avoid computational restrictions) Random Forest of 100 trees was implemented, due to its accuracy, and lack of ability to overfit (Gareth Michael James et al., 2013). Note the following is not run in this markdown due to a lack of computational difficulties when knitting:  
+
+``set.seed(1)
+model_RF<-randomForest(stars~.,data=train_data, ntree=100)
+pred_RF_test = predict(model_RF, test_data)
+mean(model_RF[["err.rate"]])``
+
+This model obtains a mean error rate of 0.715, as on average, the model makes incorrect predictions for approximately 71.5% of instances in the test data, making the model not particularly effective in predicting stars given in Yelp reviews. Accuracy can also be calculated as 0.477, the proportion of correctly predicted instances out of total instances in the test data. Precision, the proportion of true positive predictions out of all positive predictions made, of the model is 0.167. Recall, the proportion of true positive predictions out of all actual positive instances, is 0.00128. Comparing these results to similar work by Chandra Reddy et al. (2017), the accuracy of our model is over 20%-points less than this research. The precision and recall of our model is much further from this literature benchmark, suggesting our model is a relatively poor predictor.  
+
+Plotting variable importance suggests that ‘text’ has the highest importance for predicting the number of stars, followed by ‘cool’. This furthers the viewpoint that in a counterfactual with far greater computing capabilities, sentiment analysis of the ‘text’ column may have helped improve our model’s predictive performance. 3-fold cross-validation for hyperparameter tuning for this Random Forest model was also attempted, to try to find the optimal number of trees used, and improve the performance of the model, but again the computer did not have the power to execute this.
+
+![](https://github.com/averykilner/EC349-Assignment/blob/main/plot.png?raw=true)
